@@ -1,12 +1,13 @@
 import torch.nn as nn
 import torchvision.models as models
+from torchvision.models import ResNet101_Weights
 
 
 # This is the spatial stream. It will receive the central frame as input and will create a vector of c values as output
 class ResNet(nn.Module):
     def __init__(self, c):
         super(ResNet, self).__init__()
-        self.resnet = models.resnet101(pretrained=False)
+        self.resnet = models.resnet101(weights=ResNet101_Weights.IMAGENET1K_V2)
         self.resnet.fc = nn.Linear(self.resnet.fc.in_features, c)
         nn.init.xavier_uniform_(self.resnet.fc.weight)
 
