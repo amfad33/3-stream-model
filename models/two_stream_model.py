@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import models.spatial_stream as s_s
 import models.temporal_stream as t_s
+import models.MoE as MoE
 from torchsummary import summary
 
 
@@ -42,15 +43,16 @@ class TwoStreamModel(nn.Module):
         super(TwoStreamModel, self).__init__()
         self.stream1 = s_s.ResNet(c)
         self.stream2 = t_s.SlowFusionVideoModelSharedWeightsFC(3, c)
-        self.moe = MixtureOfExperts(c)
-        self.cg = ContextGating(c)
+        # self.moe = MixtureOfExperts(c)
+        # self.cg = ContextGating(c)
+        self.moe = MoE.MoeModel(c, c,2)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, image, frames):
         V_S = self.stream1(image)
         V_T = self.stream2(frames)
-        output = self.moe(V_S, V_T)
-        output = self.cg(output)
+        output = self.moe(torch.stack([V_S, V_T], dim=1))
+        # output = self.cg(output)
         output = self.softmax(output)
         return output
 
@@ -60,13 +62,14 @@ class TwoStreamModel(nn.Module):
 class TwoStreamModelTrainedStreams(nn.Module):
     def __init__(self, c):
         super(TwoStreamModelTrainedStreams, self).__init__()
-        self.moe = MixtureOfExperts(c)
-        self.cg = ContextGating(c)
+        # self.moe = MixtureOfExperts(c)
+        # self.cg = ContextGating(c)
+        self.moe = MoE.MoeModel(c, c, 2)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, V_S, V_T):
-        output = self.moe(V_S, V_T)
-        output = self.cg(output)
+        output = self.moe(torch.stack([V_S, V_T], dim=1))
+        # output = self.cg(output)
         output = self.softmax(output)
         return output
 
