@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import models.spatial_stream as s_s
 import models.temporal_stream as t_s
 import models.audio_stream as a_s
+import models.MoE as MoE
 from torchsummary import summary
 
 
@@ -44,16 +45,18 @@ class ThreeStreamModel(nn.Module):
         self.stream1 = s_s.ResNet(c)
         self.stream2 = t_s.SlowFusionVideoModelSharedWeightsFC(3, c)
         self.stream3 = a_s.FullyConnectedAudioNet(audio_input_size, c, audio_frame_count)
-        self.moe = MixtureOfExperts(c)
-        self.cg = ContextGating(c)
+        # self.moe = MixtureOfExperts(c)
+        # self.cg = ContextGating(c)
+        self.moe = MoE.MoeModel(c,c,num_mixtures=3)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, image, frames, audio):
         V_S = self.stream1(image)
         V_T = self.stream2(frames)
         V_A = self.stream3(audio)
-        output = self.moe(V_S, V_T, V_A)
-        output = self.cg(output)
+        # output = self.moe(V_S, V_T, V_A)
+        output = self.moe(torch.stack([V_S, V_T, V_A], dim=1))
+        # output = self.cg(output)
         output = self.softmax(output)
         return output
 
@@ -62,13 +65,14 @@ class ThreeStreamModel(nn.Module):
 class ThreeStreamModelTrainedStreams(nn.Module):
     def __init__(self, c, audio_input_size, audio_frame_count):
         super(ThreeStreamModelTrainedStreams, self).__init__()
-        self.moe = MixtureOfExperts(c)
-        self.cg = ContextGating(c)
+        # self.moe = MixtureOfExperts(c)
+        # self.cg = ContextGating(c)
+        self.moe = MoE.MoeModel(c, c, num_mixtures=3)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, V_S, V_T, V_A):
-        output = self.moe(V_S, V_T, V_A)
-        output = self.cg(output)
+        output = self.moe(torch.stack([V_S, V_T, V_A], dim=1))
+        # output = self.cg(output)
         output = self.softmax(output)
         return output
 
